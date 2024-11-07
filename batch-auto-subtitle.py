@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 def check_dependencies():
     """Check if required dependencies are installed."""
-    dependencies = ['ffmpeg', 'ffprobe', 'auto_subtitle', 'subliminal']
+    dependencies = ['ffmpeg', 'ffprobe', 'auto_subtitle', 'subliminal', 'autosubsync']
     for dep in dependencies:
         if shutil.which(dep) is None:
             print(f"'{dep}' is not installed.")
@@ -64,11 +64,12 @@ def check_sync_with_subsync(video_path):
     """Check if subtitles are in sync using subsync."""
     print(f"Checking sync for: {video_path}")
 
-    # Find the subtitle file
-    subtitle_files = [f for f in os.listdir(os.path.dirname(video_path)) if f.endswith(('.srt', '.sub', '.vtt'))]
+    # Get the base name of the video file (without extension) for matching
+    video_base_name = os.path.splitext(os.path.basename(video_path))[0]
 
-    # Use the first found subtitle file for sync checking (modify as needed)
-    subtitle_file = next((f for f in subtitle_files if os.path.splitext(f)[0] in os.path.basename(video_path)), None)
+    # Search for a subtitle file that starts with the video file name
+    subtitle_files = [f for f in os.listdir(os.path.dirname(video_path)) if f.startswith(video_base_name) and f.endswith(('.srt', '.sub', '.vtt'))]
+    subtitle_file = subtitle_files[0] if subtitle_files else None
 
     if subtitle_file:
         # Construct the full path to the subtitle file
@@ -78,10 +79,10 @@ def check_sync_with_subsync(video_path):
         output_subtitle_path = os.path.splitext(subtitle_path)[0] + '.1.srt'
 
         # Run subsync in headless mode
-        result = subprocess.run(['subsync', 'sync', '-c', '--sub', subtitle_path, '--ref', video_path, '--out', output_subtitle_path], capture_output=True, text=True)
+        result = subprocess.run(['autosubsync', video_path, subtitle_path, output_subtitle_path], capture_output=True, text=True)
 
         # Check for success based on output
-        if '[+] done, saved to' in result.stdout:
+        if "success!" in result.stdout:
             print("Subsync completed successfully.")
 
             # If the output file has the .1 suffix, delete the original subtitle file
